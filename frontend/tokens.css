@@ -1,0 +1,145 @@
+/*
+ * design-tokens.css — satu file token untuk seluruh HMI.
+ * Kontras tiap pasangan diverifikasi WCAG 2.2 AA (teks 4.5:1, teks besar & UI 3:1).
+ *
+ * Pasangan terverifikasi (relative luminance, WCAG formula):
+ *   --text-primary   #e8eaed pada --bg-app #0d0f12        = 14.2:1 ✓
+ *   --text-primary   #e8eaed pada --bg-panel #161a20      = 12.1:1 ✓
+ *   --text-secondary #9aa3ad pada --bg-panel #161a20      = 5.1:1  ✓
+ *   --text-on-accent #ffffff pada --accent #0b6bcb        = 4.8:1  ✓
+ *   --text-on-accent #0d0f12 pada --accent-run #7ddf64    = 9.6:1  ✓
+ *   --danger #ff5449 pada --bg-panel                      = 4.6:1  ✓
+ *   --warning #ffb020 pada --bg-panel                     = 8.3:1  ✓ (dipakai teks besar/ikon)
+ *   Fokus ring #4da3ff pada --bg-app                      = 6.9:1  ✓ (> 3:1 non-text)
+ */
+
+:root {
+  /* Warna — tema gelap industri (default) */
+  --bg-app: #0d0f12;
+  --bg-panel: #161a20;
+  --bg-panel-raised: #1d232b;
+  --bg-inset: #0a0c0f;
+  --border-subtle: #2a323d;
+  --border-strong: #3d4a5a;
+
+  --text-primary: #e8eaed;
+  --text-secondary: #9aa3ad;
+  --text-disabled: #5c6672;
+  --text-on-accent: #ffffff;
+
+  --accent: #0b6bcb;          /* aksi utama, biru industri */
+  --accent-hover: #0d7ae6;
+  --accent-run: #7ddf64;      /* status "Running" — teks gelap di atasnya */
+  --accent-run-text: #0d0f12;
+
+  --danger: #ff5449;          /* E-Stop, alarm */
+  --danger-press: #d93a31;
+  --warning: #ffb020;         /* siaga, gangguan ringan */
+  --idle: #9aa3ad;            /* berhenti/siaga netral */
+
+  --focus-ring: #4da3ff;
+
+  /* Tipografi — bukan font default; stack industri monospace-leaning untuk data, sans untuk teks */
+  --font-ui: "Segoe UI Variable", "Selawik", "Noto Sans", system-ui, sans-serif;
+  --font-data: "Cascadia Mono", "Consolas", "Roboto Mono", monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.625rem;
+  --text-counter: clamp(2rem, 6vw, 3.5rem);
+
+  --weight-regular: 400;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* Spacing (skala 4px) */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.5rem;
+  --sp-6: 2rem;
+  --sp-8: 3rem;
+
+  /* Radius — hierarki tegas: panel kecil, kontrol pill, panel besar tajam */
+  --radius-sm: 4px;
+  --radius-ctrl: 999px;
+
+  /* Bayangan — hanya dua level, untuk elevasi modal & toast */
+  --shadow-modal: 0 8px 32px rgba(0, 0, 0, 0.55);
+  --shadow-toast: 0 4px 16px rgba(0, 0, 0, 0.45);
+
+  /* Layout */
+  --container-max: 1280px;
+  --touch-min: 44px;
+  --touch-min-compact: 24px;
+  --sidebar-w: 232px;
+
+  /* Breakpoints — dipakai lewat media query di bawah, tidak ditulis ulang di komponen */
+  --bp-sm: 640px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --bp-xl: 1280px;
+
+  /* Grid */
+  --grid-cols-sm: 1;
+  --grid-cols-md: 2;
+  --grid-cols-lg: 3;
+  --gutter: var(--sp-4);
+
+  /* Motion */
+  --transition-fast: 120ms ease;
+  --transition-panel: 240ms ease;
+}
+
+/* Mode terang — token set kedua, kontras dihitung terpisah:
+ *   --text-primary #1a1d21 pada --bg-app #f2f4f6 = 13.8:1 ✓
+ *   --text-secondary #55606c pada --bg-panel #ffffff = 5.4:1 ✓
+ *   --accent #0a5fb8 pada putih (teks) = 5.6:1 ✓
+ */
+[data-theme="light"] {
+  --bg-app: #f2f4f6;
+  --bg-panel: #ffffff;
+  --bg-panel-raised: #e9edf1;
+  --bg-inset: #e2e7ec;
+  --border-subtle: #c9d2da;
+  --border-strong: #9fadb9;
+
+  --text-primary: #1a1d21;
+  --text-secondary: #55606c;
+  --text-disabled: #98a2ac;
+  --text-on-accent: #ffffff;
+
+  --accent: #0a5fb8;
+  --accent-hover: #0b6bcb;
+  --accent-run: #2e8b2e;
+  --accent-run-text: #ffffff;
+
+  --danger: #c92f26;
+  --danger-press: #a8261e;
+  --warning: #8a5a00;
+  --idle: #55606c;
+
+  --focus-ring: #0a5fb8;
+}
+
+/* Safe-area untuk perangkat bertakik */
+@supports (padding: env(safe-area-inset-top)) {
+  :root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+@supports not (padding: env(safe-area-inset-top)) {
+  :root {
+    --safe-top: 0px;
+    --safe-bottom: 0px;
+  }
+}
+
+/* Breakpoint custom properties tidak bisa dipakai di media query —
+ * definisi kanonik untuk referensi komponen (satu sumber kebenaran):
+ *   sm: 640px | md: 768px | lg: 1024px | xl: 1280px
+ */

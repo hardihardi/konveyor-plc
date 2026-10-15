@@ -1,0 +1,184 @@
+/* shell.css — layout aplikasi. Mobile-first, breakpoint dari tokens (sm 640 / md 768 / lg 1024 / xl 1280). */
+
+* { box-sizing: border-box; }
+
+html { height: 100%; }
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: var(--text-md);
+  line-height: 1.5;
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bottom);
+  overflow-x: hidden;
+}
+
+/* Skip link — aksesibilitas keyboard */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius-sm);
+  z-index: 100;
+}
+.skip-link:focus {
+  left: var(--sp-4);
+  top: var(--sp-4);
+}
+
+/* Fokus ring global — selalu terlihat */
+:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* ---------- Header ---------- */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 56px;
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.topbar__judul {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  margin-right: auto;
+}
+
+.machine-state-badge {
+  font-family: var(--font-data);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--radius-ctrl);
+  min-height: var(--touch-min-compact);
+  display: inline-flex;
+  align-items: center;
+}
+.machine-state-badge[data-state="running"] { background: var(--accent-run); color: var(--accent-run-text); }
+.machine-state-badge[data-state="idle"]    { background: var(--bg-inset); color: var(--text-secondary); }
+.machine-state-badge[data-state="fault"]   { background: var(--danger); color: var(--text-on-accent); }
+.machine-state-badge[data-state="estop"]   { background: var(--danger-press); color: var(--text-on-accent); }
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-min);
+  height: var(--touch-min);
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.icon-btn:hover { background: var(--bg-panel-raised); }
+
+/* Theme toggle: ikon sesuai tema aktif */
+[data-theme="dark"] .topbar__tema { display: none; }
+[data-theme="light"] .topbar__tema { display: none; }
+
+/* ---------- Navigasi: drawer di bawah lg ---------- */
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: min(280px, 80vw);
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border-subtle);
+  transform: translateX(-100%);
+  transition: transform var(--transition-panel);
+  z-index: 60;
+  padding-top: calc(56px + var(--safe-top));
+}
+.sidebar--terbuka { transform: translateX(0); }
+
+.drawer-veil {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 50;
+}
+
+.sidebar ul {
+  list-style: none;
+  margin: 0;
+  padding: var(--sp-4) var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.sidebar a {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  min-height: var(--touch-min);
+  color: var(--text-primary);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  font-weight: var(--weight-semibold);
+}
+.sidebar a:hover { background: var(--bg-panel-raised); }
+.sidebar a[aria-current="page"] {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+/* ---------- Konten ---------- */
+.konten {
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: var(--sp-4);
+  padding-bottom: calc(var(--sp-8) + var(--safe-bottom));
+}
+
+/* Sidebar mulai lg */
+@media (min-width: 1024px) {
+  .sidebar {
+    transform: none;
+    width: var(--sidebar-w);
+  }
+  .app-nav[data-open="false"] { transform: none; }
+  .drawer-toggle { display: none; }
+  .konten {
+    margin-left: var(--sidebar-w);
+    padding: var(--sp-6);
+  }
+  .drawer-veil { display: none; }
+}
+
+@media (min-width: 1280px) {
+  .konten { padding: var(--sp-8); }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .sidebar { transition: none; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* Kelas topbar tambahan (HTML aktual) */
+.topbar__menu, .topbar__tema {
+  background: none; border: 1px solid var(--border-subtle); color: var(--text-primary);
+  min-width: 44px; min-height: 44px; border-radius: var(--radius-sm);
+  font-size: var(--text-lg); cursor: pointer;
+}
+.topbar__status { margin-left: auto; }
+[data-theme="dark"] .topbar__tema, [data-theme="light"] .topbar__tema { display: inline-block; }

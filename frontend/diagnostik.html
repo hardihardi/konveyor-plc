@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="color-scheme" content="dark light">
+  <title>HMI Konveyor — Diagnostik I/O</title>
+  <link rel="stylesheet" href="/tokens.css">
+  <link rel="stylesheet" href="/shell.css">
+  <link rel="stylesheet" href="/components.css">
+</head>
+<body>
+<a class="skip-link" href="#konten-utama">Langsung ke konten utama</a>
+
+<header class="topbar">
+  <button class="topbar__menu" id="btn-drawer" aria-label="Buka menu navigasi" aria-expanded="false">☰</button>
+  <h1 class="topbar__judul">Diagnostik</h1>
+  <button class="topbar__tema" id="btn-tema" aria-label="Ganti tema terang/gelap">◐</button>
+</header>
+
+<nav class="sidebar" id="sidebar" aria-label="Navigasi utama">
+  <ul>
+    <li><a href="/index.html"><span class="ikon" aria-hidden="true">⚙</span> Kendali</a></li>
+    <li><a href="/penghitung.html"><span class="ikon" aria-hidden="true">#</span> Penghitung</a></li>
+    <li><a href="/laporan.html"><span class="ikon" aria-hidden="true">▤</span> Laporan</a></li>
+    <li><a href="/diagnostik.html" aria-current="page"><span class="ikon" aria-hidden="true">✚</span> Diagnostik</a></li>
+  </ul>
+</nav>
+<div class="drawer-veil" id="drawer-veil" hidden></div>
+
+<main class="konten" id="konten-utama" data-halaman-aktif="diagnostik">
+  <section class="panel" aria-labelledby="h-io">
+    <h2 id="h-io">Pengetesan I/O Manual (teknisi)</h2>
+    <p class="teks-bantu">Hanya untuk kalibrasi &amp; troubleshooting. Perubahan langsung memengaruhi logika mesin.</p>
+    <form id="form-io" class="form-grid">
+      <label for="io-kanal">Kanal I/O</label>
+      <select id="io-kanal" name="kanal" required>
+        <option value="sensor">Sensor kedekatan</option>
+        <option value="aktuator">Aktuator sortir</option>
+        <option value="interlock">Interlock pagar</option>
+        <option value="estop">Rangkaian E-Stop (NC)</option>
+      </select>
+      <label for="io-nilai">Nilai</label>
+      <select id="io-nilai" name="nilai">
+        <option value="true">TRUE (aktif)</option>
+        <option value="false">FALSE (nonaktif)</option>
+      </select>
+      <button type="submit" class="btn btn--utama">Kirim</button>
+    </form>
+  </section>
+
+  <section class="panel" aria-labelledby="h-sim">
+    <h2 id="h-sim">Simulator Objek (tanpa hardware)</h2>
+    <p class="teks-bantu">Mengirim pulsa objek ke sensor kedekatan — memicu siklus sortir (SORT-1..4).</p>
+    <button id="btn-objek-sim" class="btn">Kirim 1 Objek Simulasi</button>
+  </section>
+</main>
+
+<div id="toast-root" aria-live="polite"></div>
+<div id="modal-root"></div>
+<script type="module" src="/hmi-app.js"></script>
+<script type="module" src="/shell.js"></script>
+</body>
+</html>

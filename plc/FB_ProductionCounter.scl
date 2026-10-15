@@ -1,0 +1,93 @@
+(* ============================================================================ *)
+(* CNT-1..CNT-4, RPT-1..RPT-6: penghitung produksi + laporan harian            *)
+(* Data retentif non-volatile (RPT-3) — variabel dideklarasikan RETAIN          *)
+(* ================================================================== *)
+
+FUNCTION_BLOCK FB_ProductionCounter
+VAR_INPUT
+    xObjekValid     : BOOL;     // pulsa dari FB_ConveyorControl (sudah debounced)
+    xObjekTersortir : BOOL;     // SORT-3 selesai → objek masuk jalur sortir
+    xResetCounter   : BOOL;     // RPT-5 reset (dengan otorisasi supervisor di HMI)
+    xShiftAktif     : BOOL;     // sistem sedang berjalan (uptime)
+END_VAR
+VAR_RETAIN                     // RPT-3: bertahan saat power loss (S7-1200 retentive memory)
+    udTotalTerdeteksi  : UDInt; // CNT-1
+    udTersortir        : UDInt; // CNT-2
+    udLolos            : UDInt; // CNT-2
+    uiUptimeMenit      : UInt;
+END_VAR
+VAR
+    ctTotal   : CTU;
+    ctSortir  : CTU;
+    ctLolos   : CTU;
+    tonUptime : TON;
+    tEdgeObj  : R_TRIG;
+    tEdgeSort : R_TRIG;
+END_VAR
+
+tEdgeObj(CLK := xObjekValid);
+tEdgeSort(CLK := xObjekTersortir);
+
+// CNT-1: setiap objek valid terdeteksi
+ctTotal(CU := tEdgeObj.Q, R := xResetCounter, PV := 4294967295);
+udTotalTerdeteksi := ctTotal.CV;
+
+// CNT-2: klasifikasi sortir vs lolos
+ctSortir(CU := tEdgeSort.Q, R := xResetCounter, PV := 4294967295);
+udTersortir := ctSortir.CV;
+ctLolos(CU := tEdgeObj.Q AND NOT xObjekTersortir, R := xResetCounter, PV := 4294967295);
+udLolos := ctLolos.CV;
+
+// RPT-4: uptime menit (hanya saat shift aktif)
+tonUptime(IN := xShiftAktif, PT := T#1M);
+IF tonUptime.Q THEN
+    uiUptimeMenit := uiUptimeMenit + 1;
+    tonUptime(IN := FALSE);
+END_IF;
+
+END_FUNCTION_BLOCK
+
+
+(* ============================================================================ *)
+(* RPT-6: ekspor CSV — disusun dari daily_production_summary (Bab 8)            *)
+(* HMI membaca data block ini lewat Modbus TCP / PROFINET lalu menulis file.    *)
+(* ============================================================================ *)
+
+DATA_BLOCK DB_DailySummary
+STRUCT                          // sesuai entitas daily_production_summary Bab 8
+    report_date        : Date;          // tanggal produksi
+    shift_number       : USInt;         // 1..3 (3 shift × 8 jam, disetujui)
+    total_item_count   : UDInt;
+    passed_item_count  : UDInt;
+    sorted_item_count  : UDInt;
+    uptime_minutes     : UInt;
+    efficiency_percent : UInt;          // = (sorted+passed)/target_shift × 100
+    exported_at        : DT;            // RPT-6
+    // Fase Lanjutan (tidak dibangun MVP): erp_sync_status
+END_STRUCT;
+BEGIN
+END_DATA_BLOCK
+
+
+(* ============================================================================ *)
+(* Konfigurasi shift (disetujui): 3 shift × 8 jam                               *)
+(*   Shift 1: 06:00–14:00 | Shift 2: 14:00–22:00 | Shift 3: 22:00–06:00         *)
+(* Dipakai FB_ShiftManager untuk auto-arsip riwayat (alur Bab 7.4)              *)
+(* ============================================================================ *)
+
+FUNCTION FC_GetShiftAktif : USInt
+VAR_INPUT
+    dtNow : DT;
+END_VAR
+VAR
+    wJam : USInt;
+END_VAR
+    wJam := HOUR(dtNow);  // ekstrak jam 0..23
+    IF wJam >= 6 AND wJam < 14 THEN
+        FC_GetShiftAktif := 1;
+    ELSIF wJam >= 14 AND wJam < 22 THEN
+        FC_GetShiftAktif := 2;
+    ELSE
+        FC_GetShiftAktif := 3;
+    END_IF;
+END_FUNCTION

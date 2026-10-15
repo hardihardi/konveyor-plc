@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="color-scheme" content="dark light">
+  <title>HMI Konveyor — Penghitung Produksi</title>
+  <link rel="stylesheet" href="/tokens.css">
+  <link rel="stylesheet" href="/shell.css">
+  <link rel="stylesheet" href="/components.css">
+</head>
+<body>
+<a class="skip-link" href="#konten-utama">Langsung ke konten utama</a>
+
+<header class="topbar">
+  <button class="topbar__menu" id="btn-drawer" aria-label="Buka menu navigasi" aria-expanded="false">☰</button>
+  <h1 class="topbar__judul">Penghitung Produksi</h1>
+  <button class="topbar__tema" id="btn-tema" aria-label="Ganti tema terang/gelap">◐</button>
+</header>
+
+<nav class="sidebar" id="sidebar" aria-label="Navigasi utama">
+  <ul>
+    <li><a href="/index.html"><span class="ikon" aria-hidden="true">⚙</span> Kendali</a></li>
+    <li><a href="/penghitung.html" aria-current="page"><span class="ikon" aria-hidden="true">#</span> Penghitung</a></li>
+    <li><a href="/laporan.html"><span class="ikon" aria-hidden="true">▤</span> Laporan</a></li>
+    <li><a href="/diagnostik.html"><span class="ikon" aria-hidden="true">✚</span> Diagnostik</a></li>
+  </ul>
+</nav>
+<div class="drawer-veil" id="drawer-veil" hidden></div>
+
+<main class="konten" id="konten-utama" data-halaman-aktif="penghitung">
+  <section class="panel" aria-labelledby="h-cnt">
+    <h2 id="h-cnt">Penghitung Produksi (retentif)</h2>
+    <div class="grid-kartu">
+      <div class="kartu-angka"><span class="kartu-angka__label">Total terdeteksi (CNT-1)</span><span class="kartu-angka__nilai" id="cnt-total">—</span></div>
+      <div class="kartu-angka"><span class="kartu-angka__label">Tersortir (CNT-2)</span><span class="kartu-angka__nilai" id="cnt-tersortir">—</span></div>
+      <div class="kartu-angka"><span class="kartu-angka__label">Lolos (CNT-2)</span><span class="kartu-angka__nilai" id="cnt-lolos">—</span></div>
+      <div class="kartu-angka"><span class="kartu-angka__label">Uptime (RPT-4)</span><span class="kartu-angka__nilai" id="cnt-uptime">—</span></div>
+    </div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-param">
+    <h2 id="h-param">Parameter Kalibrasi (teknisi otomasi)</h2>
+    <form id="form-parameter" class="form-grid">
+      <label for="p-debounce">Debounce sensor (ms, 10–20)</label>
+      <input id="p-debounce" name="debounce_ms" type="number" min="10" max="20" inputmode="numeric">
+      <label for="p-speed">Kecepatan motor (Hz)</label>
+      <input id="p-speed" name="speed_hz" type="number" min="10" max="60" inputmode="numeric">
+      <label for="p-brake">Dwell rem (ms, 100–2000)</label>
+      <input id="p-brake" name="brake_ms" type="number" min="100" max="2000" inputmode="numeric">
+      <label for="p-dwell">Dwell aktuator (ms, 100–3000)</label>
+      <input id="p-dwell" name="sort_dwell_ms" type="number" min="100" max="3000" inputmode="numeric">
+      <button type="submit" class="btn btn--utama">Simpan Parameter</button>
+    </form>
+    <dl class="nilai-saat-ini">
+      <div><dt>Aktif — debounce</dt><dd id="v-debounce">—</dd></div>
+      <div><dt>Aktif — kecepatan</dt><dd id="v-speed">—</dd></div>
+      <div><dt>Aktif — dwell rem</dt><dd id="v-brake">—</dd></div>
+      <div><dt>Aktif — dwell sortir</dt><dd id="v-dwell">—</dd></div>
+    </dl>
+  </section>
+</main>
+
+<div id="toast-root" aria-live="polite"></div>
+<div id="modal-root"></div>
+<script type="module" src="/hmi-app.js"></script>
+<script type="module" src="/shell.js"></script>
+</body>
+</html>

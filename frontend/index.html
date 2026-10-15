@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="color-scheme" content="dark light">
+  <title>HMI Konveyor — Kendali Mesin</title>
+  <link rel="stylesheet" href="/tokens.css">
+  <link rel="stylesheet" href="/shell.css">
+  <link rel="stylesheet" href="/components.css">
+</head>
+<body>
+<a class="skip-link" href="#konten-utama">Langsung ke konten utama</a>
+
+<header class="topbar">
+  <button class="topbar__menu" id="btn-drawer" aria-label="Buka menu navigasi" aria-expanded="false">☰</button>
+  <h1 class="topbar__judul">HMI Konveyor</h1>
+  <div class="topbar__status" id="status-mesin" aria-live="polite">…</div>
+  <button class="topbar__tema" id="btn-tema" aria-label="Ganti tema terang/gelap">◐</button>
+</header>
+
+<nav class="sidebar" id="sidebar" aria-label="Navigasi utama">
+  <ul>
+    <li><a href="/index.html" aria-current="page"><span class="ikon" aria-hidden="true">⚙</span> Kendali</a></li>
+    <li><a href="/penghitung.html"><span class="ikon" aria-hidden="true">#</span> Penghitung</a></li>
+    <li><a href="/laporan.html"><span class="ikon" aria-hidden="true">▤</span> Laporan</a></li>
+    <li><a href="/diagnostik.html"><span class="ikon" aria-hidden="true">✚</span> Diagnostik</a></li>
+  </ul>
+</nav>
+<div class="drawer-veil" id="drawer-veil" hidden></div>
+
+<main class="konten" id="konten-utama">
+  <section class="panel" aria-labelledby="h-kendali">
+    <h2 id="h-kendali">Kendali Operasional</h2>
+
+    <div class="grid-status" role="group" aria-label="Status aktuator">
+      <div class="stat"><dt>Motor (VFD)</dt><dd id="status-motor">—</dd></div>
+      <div class="stat"><dt>Rem sinkron</dt><dd id="status-brake">—</dd></div>
+      <div class="stat"><dt>Aktuator sortir</dt><dd id="status-sortir">—</dd></div>
+      <div class="stat"><dt>Frekuensi</dt><dd id="frekuensi-vfd">—</dd></div>
+    </div>
+
+    <fieldset class="lampu-group">
+      <legend>Indikator I/O</legend>
+      <span class="lampu-wrap"><span class="lampu" id="lampu-estop"></span> E-Stop</span>
+      <span class="lampu-wrap"><span class="lampu" id="lampu-interlock"></span> Interlock</span>
+      <span class="lampu-wrap"><span class="lampu" id="lampu-sensor"></span> Sensor objek</span>
+    </fieldset>
+
+    <ul id="daftar-alarm" class="alarm" hidden></ul>
+
+    <div class="tombol-row">
+      <button id="btn-start" class="btn btn--sukses">Mulai (Start)</button>
+      <button id="btn-stop" class="btn btn--peringatan">Berhenti (Stop)</button>
+      <button id="btn-reset" class="btn" disabled>Reset</button>
+      <button id="btn-estop" class="btn btn--estop">⬤ E-STOP</button>
+    </div>
+  </section>
+</main>
+
+<script type="module" src="/hmi-app.js"></script>
+<script type="module" src="/shell.js"></script>
+</body>
+</html>

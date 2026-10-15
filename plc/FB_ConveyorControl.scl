@@ -1,0 +1,141 @@
+(* ============================================================================ *)
+(* Smart Conveyor Sorting & Daily Production Counter System                     *)
+(* PRD v0.1 — Bab 6 (CTRL/SORT/CNT/RPT), Bab 5 parameter, Bab 7 alur            *)
+(* Target: Siemens S7-1200 (IEC 61131-3 Structured Text)                        *)
+(* Asumsi disetujui: belt 0,5 m/s | sensor→stop 200 mm | 3 shift × 8 jam        *)
+(*                  sensor induktif PNP NO | aktuator pneumatik double-acting   *)
+(* ============================================================================ *)
+
+FUNCTION_BLOCK FB_ConveyorControl
+(* ================================================================== *)
+(* CTRL-1..CTRL-5: kendali operasional + interlock + E-Stop            *)
+(* ================================================================== *)
+VAR_INPUT
+    xStart          : BOOL;     // CTRL-1 tombol Start (HMI/panel, naik)
+    xStop          : BOOL;     // CTRL-2 tombol Stop normal (naik)
+    xEStop         : BOOL;     // CTRL-3 E-Stop fisik, NC safety circuit (TRUE = aman)
+    xInterlockOk   : BOOL;     // interlock pagar/pintu (TRUE = aman)
+    xReset         : BOOL;     // CTRL-5 reset setelah fault/E-Stop
+    xObjekTerdeteksi : BOOL;   // SORT-1 input sensor kedekatan (debounced)
+    xAktuatorHome  : BOOL;     // SORT-3 sensor posisi aktuator kembali home
+END_VAR
+
+VAR_OUTPUT
+    xMotorRun      : BOOL;     // perintah run ke VFD (via Modbus RTU / terminal)
+    xBrakeSync     : BOOL;     // SORT-2 perintah deselerasi sinkron ke VFD
+    xSortirAktif   : BOOL;     // SORT-3 keluaran solenoid pneumatik diverter
+    wStatusMesin   : UINT;     // CTRL-4: 0=Idle 1=Running 2=Stopping 3=Sorting 4=Fault 5=EStop
+    xAlarmAktif    : BOOL;
+END_VAR
+
+VAR
+    tonDebounce    : TON;      // SORT-1 debounce 15 ms (tengah rentang 10–20 ms PRD)
+    tonBrakeDwell  : TON;      // SORT-2 dwell pengereman: 200 mm / 0,5 m/s = 400 ms
+    tonSortDwell   : TON;      // SORT-3 dwell aktuator pneumatik (parameter kalibrasi)
+    tonMotorOffDelay : TON;    // CTRL-2 ramp-down normal
+    tEdgeStart     : R_TRIG;
+    tEdgeReset     : R_TRIG;
+    xEStopLatched  : BOOL;     // E-Stop latch sampai Reset (CTRL-5)
+    xFaultLatched  : BOOL;
+    eMesin         : eMesinState; // enum state machine
+    rBrakeDwellT   : TIME := T#400MS;  // kalibrasi: 0,5 m/s × 200 mm
+    rSortDwellT    : TIME := T#500MS;  // kalibrasi teknisi (default 500 ms)
+END_VAR
+
+// ------------------------------------------------------------------
+// Mesin status utama (sesuai alur Bab 7.1–7.3)
+// ------------------------------------------------------------------
+tEdgeStart(CLK := xStart);
+tEdgeReset(CLK := xReset);
+
+// E-Stop: hardware NC terbuka → latched, hanya Reset yang lepas (CTRL-3, CTRL-5)
+IF NOT xEStop THEN
+    xEStopLatched := TRUE;
+END_IF;
+IF tEdgeReset.Q AND xEStop AND xInterlockOk THEN
+    xEStopLatched := FALSE;
+    xFaultLatched := FALSE;
+END_IF;
+
+// Fault: aktuator tidak kembali home dalam dwell → latched
+IF tonSortDwell.Q AND NOT xAktuatorHome THEN
+    xFaultLatched := TRUE;
+END_IF;
+
+CASE eMesin OF
+    eIdle:
+        xMotorRun := FALSE;
+        xBrakeSync := FALSE;
+        xSortirAktif := FALSE;
+        wStatusMesin := 0;
+        IF tEdgeStart.Q AND NOT xEStopLatched AND NOT xFaultLatched
+           AND xInterlockOk AND xEStop THEN
+            eMesin := eRunning;
+        END_IF;
+
+    eRunning:
+        xMotorRun := TRUE;
+        xBrakeSync := FALSE;
+        wStatusMesin := 1;
+        // E-Stop prioritas tertinggi, Cat-0
+        IF NOT xEStop OR xEStopLatched THEN
+            eMesin := eEStop;
+        ELSIF xStop THEN
+            eMesin := eStopping;
+        ELSIF xObjekTerdeteksi THEN
+            eMesin := eSorting;
+        END_IF;
+
+    eSorting:
+        // SORT-2: rem sinkron tepat saat objek di posisi sortir
+        xBrakeSync := TRUE;
+        wStatusMesin := 3;
+        tonBrakeDwell(IN := TRUE, PT := rBrakeDwellT);
+        IF tonBrakeDwell.Q THEN
+            xSortirAktif := TRUE;              // SORT-3 dorong objek
+            tonSortDwell(IN := TRUE, PT := rSortDwellT);
+            IF tonSortDwell.Q AND xAktuatorHome THEN
+                tonBrakeDwell(IN := FALSE);    // reset timer untuk siklus berikut
+                tonSortDwell(IN := FALSE);
+                eMesin := eRunning;            // SORT-4 lanjut otomatis
+            END_IF;
+        END_IF;
+        IF NOT xEStop OR xEStopLatched THEN
+            eMesin := eEStop;
+        END_IF;
+
+    eStopping:
+        // CTRL-2: motor melambat hingga berhenti sempurna
+        xMotorRun := FALSE;
+        xBrakeSync := TRUE;                    // deselerasi terkontrol VFD
+        wStatusMesin := 2;
+        tonMotorOffDelay(IN := TRUE, PT := T#2S);
+        IF tonMotorOffDelay.Q THEN
+            xBrakeSync := FALSE;
+            tonMotorOffDelay(IN := FALSE);
+            eMesin := eIdle;
+        END_IF;
+
+    eEStop:
+        // CTRL-3: putus daya seketika — STO VFD aktif via safety relay
+        xMotorRun := FALSE;
+        xBrakeSync := FALSE;
+        xSortirAktif := FALSE;
+        wStatusMesin := 5;
+        xAlarmAktif := TRUE;
+        IF NOT xEStopLatched AND xReset THEN
+            eMesin := eIdle;
+        END_IF;
+
+    eFault:
+        xMotorRun := FALSE;
+        wStatusMesin := 4;
+        IF tEdgeReset.Q AND xInterlockOk THEN
+            eMesin := eIdle;
+        END_IF;
+END_CASE;
+
+// SORT-1: debounce sensor — sinyal harus stabil 15 ms sebelum valid
+tonDebounce(IN := xObjekTerdeteksi, PT := T#15MS);
+
+END_FUNCTION_BLOCK

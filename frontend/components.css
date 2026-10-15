@@ -1,0 +1,336 @@
+/* components.css — komponen dasar bersama. Semua nilai dari tokens.css, tanpa nilai langsung. */
+
+/* ---------- Panel ---------- */
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-4);
+  margin-bottom: var(--gutter);
+}
+@media (min-width: 768px) {
+  .panel { padding: var(--sp-5); }
+}
+
+.panel-title {
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+  margin: 0 0 var(--sp-4);
+  color: var(--text-primary);
+}
+
+/* ---------- Tombol ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: var(--touch-min);
+  min-width: var(--touch-min);
+  padding: var(--sp-2) var(--sp-5);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-ui);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+.btn:disabled {
+  cursor: not-allowed;
+  color: var(--text-disabled);
+  border-color: var(--border-subtle);
+  background: var(--bg-inset);
+}
+.btn:disabled svg { color: var(--text-disabled); }
+
+.btn-primary { background: var(--accent); color: var(--text-on-accent); }
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+.btn-secondary:hover:not(:disabled) { background: var(--bg-panel-raised); }
+
+.btn-danger { background: var(--danger); color: var(--text-on-accent); }
+.btn-danger:hover:not(:disabled) { background: var(--danger-press); }
+
+/* E-Stop: besar, mudah dijangkau, bukan dekorasi */
+.btn-estop {
+  background: var(--danger);
+  color: var(--text-on-accent);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  min-height: 64px;
+  width: 100%;
+  letter-spacing: 0.08em;
+  border: 3px solid var(--danger-press);
+}
+.btn-estop:active { background: var(--danger-press); }
+
+/* ---------- Input & label ---------- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin-bottom: var(--sp-4);
+}
+
+.field-label {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
+}
+
+.field-input {
+  min-height: var(--touch-min);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--bg-inset);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-data);
+  font-size: var(--text-md);
+}
+.field-input:focus-visible { outline-offset: 0; }
+
+.field-error {
+  font-size: var(--text-sm);
+  color: var(--danger);
+  min-height: 1.25em;
+}
+
+/* Form: satu kolom di bawah md, grid mulai md */
+.form-grid { display: grid; grid-template-columns: 1fr; gap: 0 var(--gutter); }
+@media (min-width: 768px) {
+  .form-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ---------- Tabel data: scroll horizontal, kolom identitas menempel ---------- */
+.table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+.data-table th, .data-table td {
+  text-align: left;
+  padding: var(--sp-2) var(--sp-3);
+  min-height: var(--touch-min-compact);
+  border-bottom: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+.data-table th {
+  color: var(--text-secondary);
+  font-weight: var(--weight-semibold);
+  position: sticky;
+  top: 0;
+  background: var(--bg-panel);
+}
+.data-table .col-identity {
+  position: sticky;
+  left: 0;
+  background: var(--bg-panel);
+  font-family: var(--font-data);
+  font-weight: var(--weight-semibold);
+}
+
+/* ---------- Modal: layar penuh di bawah sm, dialog mulai sm ---------- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 80;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+}
+.modal-box {
+  background: var(--bg-panel);
+  width: 100%;
+  max-height: 100dvh;
+  overflow-y: auto;
+  padding: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+@media (min-width: 640px) {
+  .modal-backdrop { align-items: center; justify-content: center; padding: var(--sp-6); }
+  .modal-box {
+    width: min(480px, 100%);
+    max-height: 85dvh;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-modal);
+  }
+}
+.modal-title { margin: 0; font-size: var(--text-lg); }
+.modal-actions { display: flex; gap: var(--sp-3); justify-content: flex-end; flex-wrap: wrap; }
+
+/* ---------- Toast ---------- */
+.toast-region {
+  position: fixed;
+  bottom: calc(var(--sp-4) + var(--safe-bottom));
+  left: var(--sp-4);
+  right: var(--sp-4);
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  pointer-events: none;
+}
+@media (min-width: 640px) {
+  .toast-region { left: auto; width: 360px; }
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  background: var(--bg-panel-raised);
+  border: 1px solid var(--border-strong);
+  border-left: 4px solid var(--idle);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-3) var(--sp-4);
+  box-shadow: var(--shadow-toast);
+  pointer-events: auto;
+}
+.toast[data-kind="success"] { border-left-color: var(--accent-run); }
+.toast[data-kind="error"]   { border-left-color: var(--danger); }
+.toast[data-kind="info"]    { border-left-color: var(--accent); }
+
+.toast-title { font-weight: var(--weight-semibold); margin: 0; }
+.toast-body { margin: 0; font-size: var(--text-sm); color: var(--text-secondary); }
+
+/* ---------- State bersama: loading / empty / error ---------- */
+.state-loading, .state-empty, .state-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-8) var(--sp-4);
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--border-subtle);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.state-error { color: var(--danger); }
+
+/* ---------- Counter besar (HMI) ---------- */
+.counter-display {
+  font-family: var(--font-data);
+  font-size: var(--text-counter);
+  font-weight: var(--weight-bold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.counter-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  font-weight: var(--weight-semibold);
+}
+
+/* ---------- Stat grid ---------- */
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--gutter);
+}
+@media (min-width: 768px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1024px) { .stat-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 1280px) { .stat-grid { grid-template-columns: repeat(5, 1fr); } }
+
+/* ---------- Teks panjang: ellipsis + tooltip ---------- */
+.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+/* ---------- Visually hidden (untuk label ikon-only) ---------- */
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ===== Kelas komponen HTML aktual (kendali/penghitung/laporan/diagnostik) ===== */
+.grid-status { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-3); margin: var(--sp-4) 0; }
+@media (min-width: 768px) { .grid-status { grid-template-columns: repeat(4, 1fr); } }
+.stat dt { font-size: var(--text-sm); color: var(--text-secondary); margin: 0; }
+.stat dd { font-size: var(--text-xl); font-weight: var(--weight-bold); margin: 0; color: var(--text-primary); }
+
+.lampu-group { display: flex; gap: var(--sp-4); flex-wrap: wrap; margin: var(--sp-4) 0; border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: var(--sp-3); }
+.lampu-wrap { display: inline-flex; align-items: center; gap: var(--sp-2); min-height: 44px; }
+.lampu { width: 16px; height: 16px; border-radius: 50%; background: var(--text-disabled); display: inline-block; border: 1px solid var(--border-subtle); }
+.lampu--merah { background: var(--danger); }
+.lampu--hijau { background: var(--success); }
+.lampu--kuning { background: var(--warning); }
+
+.tombol-row { display: flex; gap: var(--sp-3); flex-wrap: wrap; margin-top: var(--sp-4); }
+.tombol-row .btn { min-height: 48px; min-width: 120px; }
+
+.chip { display: inline-block; padding: var(--sp-1) var(--sp-3); border-radius: 999px; font-weight: var(--weight-semibold); font-size: var(--text-sm); border: 1px solid var(--border-subtle); }
+.chip--netral { background: var(--bg-panel-raised); color: var(--text-primary); }
+.chip--sukses { background: var(--success); color: var(--text-on-accent); }
+.chip--peringatan { background: var(--warning); color: var(--text-on-accent); }
+.chip--info { background: var(--info); color: var(--text-on-accent); }
+.chip--gagal { background: var(--danger); color: var(--text-on-accent); }
+
+.grid-kartu { display: grid; grid-template-columns: 1fr; gap: var(--sp-3); margin: var(--sp-4) 0; }
+@media (min-width: 640px) { .grid-kartu { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1024px) { .grid-kartu { grid-template-columns: repeat(4, 1fr); } }
+.kartu-angka { background: var(--bg-panel-raised); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-2); }
+.kartu-angka__label { font-size: var(--text-sm); color: var(--text-secondary); }
+.kartu-angka__nilai { font-size: var(--text-2xl); font-weight: var(--weight-bold); font-variant-numeric: tabular-nums; }
+
+.form-grid { display: grid; grid-template-columns: 1fr; gap: var(--sp-2); max-width: 480px; }
+@media (min-width: 768px) { .form-grid { grid-template-columns: 1fr 1fr; } .form-grid button { grid-column: 1 / -1; } }
+.form-grid label { align-self: center; }
+.form-grid input, .form-grid select { min-height: 44px; padding: var(--sp-2) var(--sp-3); background: var(--bg-panel-raised); color: var(--text-primary); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); font-size: var(--text-md); }
+
+.nilai-saat-ini { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-2); margin-top: var(--sp-4); }
+.nilai-saat-ini div { display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border-subtle); padding: var(--sp-2) 0; }
+.nilai-saat-ini dt { color: var(--text-secondary); }
+.nilai-saat-ini dd { margin: 0; font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; }
+
+.tabel-data { width: 100%; border-collapse: collapse; margin: var(--sp-4) 0; }
+.tabel-data th, .tabel-data td { padding: var(--sp-3); border-bottom: 1px solid var(--border-subtle); text-align: left; }
+.tabel-data thead th { color: var(--text-secondary); font-size: var(--text-sm); text-transform: uppercase; letter-spacing: 0.04em; }
+.tabel-data td { font-variant-numeric: tabular-nums; }
+
+.teks-bantu { color: var(--text-secondary); font-size: var(--text-sm); }
+
+.alarm { background: var(--danger); color: var(--text-on-accent); padding: var(--sp-3) var(--sp-4); border-radius: var(--radius-sm); list-style: disc; padding-left: 2.5rem; }
+
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+#toast-root { position: fixed; bottom: calc(var(--sp-4) + var(--safe-bottom)); left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: var(--sp-2); z-index: 90; }
+
+/* Varian tombol */
+.btn--utama { background: var(--accent); color: var(--text-on-accent); }
+.btn--sukses { background: var(--success); color: var(--text-on-accent); }
+.btn--peringatan { background: var(--warning); color: var(--text-on-accent); }
+.btn--estop { background: var(--danger); color: var(--text-on-accent); font-weight: var(--weight-bold); min-width: 140px; border: 3px solid var(--danger); }
+.btn--estop:disabled { opacity: 0.5; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
