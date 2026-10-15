@@ -1,0 +1,21 @@
+services:
+  konveyor-hmi:
+    image: ghcr.io/hardihardi/konveyor-plc:latest
+    container_name: konveyor-hmi
+    restart: unless-stopped
+    ports:
+      - "8600:8600"
+    environment:
+      # WAJIB ganti sebelum produksi — salt untuk hash password
+      - HMI_PIN_SALT=${HMI_PIN_SALT:-ganti-di-produksi}
+      - HMI_DB=/app/data/hmi.db
+    volumes:
+      - konveyor-data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8600/api/status', timeout=4)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  konveyor-data:

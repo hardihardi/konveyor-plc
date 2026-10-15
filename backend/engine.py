@@ -88,6 +88,10 @@ class PLCEngine:
         self._prev_start = False
         self._prev_reset = False
         self._objek_valid = False
+        self._pulsa_aktif = False
+        self._cnt_sudah_dihitung = False
+        self.counter_sorted_this_pulse = False
+        self._sortir_selesai = False
         self._objek_tersortir_pulse = False
 
         self.counter = Counter()
@@ -159,16 +163,28 @@ class PLCEngine:
     def step(self) -> None:
         """Satu siklus scan 10 ms — logika mirror dari FB_ConveyorControl."""
         with self._lock:
-            # SORT-1 debounce: sinyal harus stabil 15 ms
-            if self.in_objek:
+            # SORT-1 debounce: sinyal harus stabil 15 ms sebelum objek dianggap valid.
+            # CNT-1 dihitung SEKALI per pulsa (pada debounced edge pertama) — siklus sortir
+            # panjang tidak boleh menghasilkan penghitungan ulang walau sinyal masih aktif.
+            if self.in_objek and not self._pulsa_aktif:
+                self._pulsa_aktif = True            # edge naik fisik
+                self._debounce_timer = 0
+                self._cnt_sudah_dihitung = False
+            if self._pulsa_aktif and self.in_objek:
                 self._debounce_timer += SCAN_MS
                 if self._debounce_timer >= self.param.debounce_time_ms and not self._objek_valid:
-                    self._objek_valid = True   # rising edge objek valid
-                    if self.state == MesinState.RUNNING:
-                        self.counter.total += 1   # CNT-1
-            else:
-                self._debounce_timer = 0
+                    self._objek_valid = True
+                    if not self._cnt_sudah_dihitung:
+                        self._cnt_sudah_dihitung = True
+                        self.counter.total += 1     # CNT-1 — sekali per objek
+            elif not self.in_objek and self._pulsa_aktif:
+                # pulsa berakhir (objek lewat sensor)
+                if self._objek_valid and self.state != MesinState.SORTING:
+                    self.counter.passed += 1        # CNT-2 lolos — lewat tanpa sortir
+                self._pulsa_aktif = False
                 self._objek_valid = False
+                self._debounce_timer = 0
+                self.counter_sorted_this_pulse = False
 
             match self.state:
                 case MesinState.IDLE:
@@ -187,27 +203,46 @@ class PLCEngine:
                         self._brake_timer = 0
 
                 case MesinState.SORTING:
-                    # SORT-2: rem sinkron
-                    self.out_brake = True
-                    self._brake_timer += SCAN_MS
-                    if self._brake_timer >= self.param.brake_delay_ms:
-                        self.out_sortir = True    # SORT-3
-                        self._sort_timer += SCAN_MS
-                        if self._sort_timer >= self.param.sort_actuator_dwell_ms:
-                            if self.in_aktuator_home:
-                                # SORT-4: selesai, lanjut otomatis
-                                self.counter.sorted += 1   # CNT-2 (sorted)
-                                self._objek_tersortir_pulse = True
-                                self.out_sortir = False
-                                self.out_brake = False
-                                self._sort_timer = 0
-                                self._brake_timer = 0
-                                self.state = MesinState.RUNNING
-                            else:
-                                self._fault_latched = True
-                                self.state = MesinState.FAULT
-                    if not self.in_estop or self._estop_latched:
-                        self.state = MesinState.ESTOP
+                    if self._sortir_selesai and not self._pulsa_aktif:
+                        self._sortir_selesai = False
+                        self.counter_sorted_this_pulse = False
+                        self._objek_valid = False
+                        self.out_brake = False
+                        self.out_sortir = False
+                        self.state = MesinState.RUNNING
+                    elif self._sortir_selesai:
+                        if not self.in_estop or self._estop_latched:
+                            self.state = MesinState.ESTOP
+                    else:
+                        # SORT-2: rem sinkron
+                        self.out_brake = True
+                        self._brake_timer += SCAN_MS
+                        if self._brake_timer >= self.param.brake_delay_ms:
+                            self.out_sortir = True    # SORT-3
+                            self._sort_timer += SCAN_MS
+                            if self._sort_timer >= self.param.sort_actuator_dwell_ms:
+                                if self.in_aktuator_home:
+                                    # SORT-4: selesai. Kembali RUNNING hanya setelah pulsa sensor
+                                    # berakhir (objek fisik didorong keluar) — anti double count CNT-2.
+                                    if not self.counter_sorted_this_pulse:
+                                        self.counter.sorted += 1   # CNT-2 (sorted)
+                                        self.counter_sorted_this_pulse = True
+                                    self._objek_tersortir_pulse = True
+                                    self.out_sortir = False
+                                    self.out_brake = False
+                                    self._sort_timer = 0
+                                    self._brake_timer = 0
+                                    if not self._pulsa_aktif:
+                                        self.counter_sorted_this_pulse = False
+                                        self._objek_valid = False
+                                        self.state = MesinState.RUNNING
+                                    else:
+                                        self._sortir_selesai = True   # tunggu pulsa berakhir
+                                else:
+                                    self._fault_latched = True
+                                    self.state = MesinState.FAULT
+                        if not self.in_estop or self._estop_latched:
+                            self.state = MesinState.ESTOP
 
                 case MesinState.STOPPING:
                     self.out_motor = False
