@@ -92,6 +92,24 @@ Counter mesin juga retentif: bertahan mati listrik (persisten, mirror `VAR_RETAI
 
 Endpoint publik baca-saja disengaja untuk display pabrik/wallboard. Semua perubahan state butuh token.
 
+## CI/CD
+
+`.github/workflows/ci.yml` siap: push/PR ke `main` → lint (compileall) → unit test engine → integrasi test API → build & push image ke `ghcr.io/hardihardi/konveyor-plc` (cache GHA).
+
+> **Status (jujur):** job GitHub Actions gagal start dengan *"account is locked due to a billing issue"* — akun free perlu membuka **Settings → Billing** (atau spending limit $0 untuk free tier) agar runner bisa dipakai. Semua 26 test **sudah diverifikasi lolos secara lokal** (`pytest test_engine.py test_api.py`), dan image Docker **sudah terverifikasi build + jalan sehat** di mesin lokal.
+
+Jalankan lokal (tanpa GitHub Actions):
+
+```bash
+cd backend
+python3 -m pytest test_engine.py test_api.py -v   # 26 test
+
+# Docker
+docker build -t konveyor-plc .
+docker run -p 8600:8600 -e HMI_PIN_SALT="salt-rahasia-anda" konveyor-plc
+# atau: docker compose up -d
+```
+
 ## Deploy hardware (PLC)
 
 Import `plc/*.scl` ke TIA Portal (S7-1200), mapping I/O:
