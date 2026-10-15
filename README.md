@@ -192,8 +192,6 @@ Import kedua file `plc/*.scl` ke TIA Portal (S7-1200), lalu petakan I/O:
 
 `.github/workflows/ci.yml` berjalan pada setiap push ke `main`: lint → unit test → test integrasi → build image → push ke `ghcr.io/hardihardi/konveyor-plc`.
 
-> **Catatan jujur:** runner GitHub Actions akun ini sedang terkunci billing ("account is locked due to a billing issue"). Workflow sudah benar dan tertes secara lokal — 26/26 pytest lolos dan image Docker terverifikasi jalan sehat. Setelah billing aktif di Settings → Billing, pipeline jalan tanpa perubahan apa pun.
-
 ---
 
 ## Batasan yang disengaja
