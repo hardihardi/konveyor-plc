@@ -1,6 +1,6 @@
 # Konveyor PLC — Smart Conveyor Sorting & Daily Production Counter System
 
-Implementasi PRD v0.1 (draft) — **Keduanya: Software (simulasi full-stack) + Hardware (kode PLC IEC 61131-3)**.
+Implementasi PRD v0.1 (draft) — **Keduanya: Software (simulasi full-stack + database + REST API) + Hardware (kode PLC IEC 61131-3)**.
 
 ## Struktur
 
@@ -9,14 +9,17 @@ konveyor-plc/
 ├── plc/                      # HARDWARE — kode PLC (Siemens S7-1200, IEC 61131-3 ST)
 │   ├── FB_ConveyorControl.scl    # CTRL-1..5, SORT-1..4 (state machine, debounce, brake sync, interlock, E-Stop STO)
 │   └── FB_ProductionCounter.scl  # CNT-1..2, RPT-3..6 (counter retentif, shift 3×8 jam, DB daily summary, CSV)
-├── backend/                  # SOFTWARE — engine simulasi + API
-│   ├── engine.py                 # Mirror 1:1 logika SCL ke Python, scan cycle 10 ms, counter persisten (retentif)
-│   └── main.py                   # FastAPI: status, kontrol, parameter, laporan, tutup-shift (PIN), ekspor CSV, diagnostik I/O, simulator objek
-├── frontend/                 # SOFTWARE — HMI web responsif (WCAG 2.2 AA, dark mode wajib, Bahasa Indonesia)
+├── backend/                  # SOFTWARE — engine simulasi + REST API + database
+│   ├── engine.py                 # Mirror 1:1 logika SCL ke Python, scan cycle 10 ms, counter persisten
+│   ├── main.py                   # FastAPI: auth token, kontrol, parameter, laporan, tutup-shift, CSV, alarm, diagnostik
+│   ├── db.py                     # SQLite WAL: 4 tabel sesuai model data PRD Bab 8
+│   └── requirements.txt
+├── frontend/                 # SOFTWARE — HMI web responsif (WCAG 2.2 AA, dark mode, Bahasa Indonesia)
 │   ├── index.html                # Kendali: status, indikator I/O, Start/Stop/Reset/E-STOP
 │   ├── penghitung.html           # Counter + parameter kalibrasi teknisi
-│   ├── laporan.html              # RPT-4 ringkasan + RPT-6 ekspor CSV + RPT-5 tutup shift (PIN supervisor)
+│   ├── laporan.html              # RPT-4 ringkasan + RPT-6 ekspor CSV + RPT-5 tutup shift
 │   ├── diagnostik.html           # I/O test manual + simulator objek
+│   ├── docs.html                 # Dokumentasi API di dalam HMI
 │   ├── tokens.css                # Satu file token (kontras diverifikasi WCAG AA)
 │   ├── shell.css / shell.js      # Layout mobile-first, drawer <lg, tema gelap/terang persisten
 │   ├── components.css / components.js  # Komponen tunggal: toast, modal, konfirmasi, loading/empty/error
@@ -36,26 +39,71 @@ konveyor-plc/
 | Sensor | Induktif PNP NO, debounce **15 ms** (rentang PRD 10–20) |
 | Aktuator | Pneumatik, dwell default 500 ms (kalibrasi teknisi) |
 
-## Jalankan (software)
+## Jalankan
 
 ```bash
 cd backend
 pip install -r requirements.txt
 python3 -m uvicorn main:app --port 8600
-# Buka http://localhost:8600
+# HMI      → http://localhost:8600
+# API docs → http://localhost:8600/docs   (Swagger UI interaktif)
+#          → http://localhost:8600/redoc  (ReDoc)
 ```
 
-PIN supervisor default: **2580** — WAJIB ganti lewat env `HMI_PIN_SALT` sebelum produksi.
+## Akun bawaan (WAJIB ganti setelah login pertama)
+
+| Username | Password awal | Peran | Hak |
+|---|---|---|---|
+| `supervisor` | `2580` | supervisor | Kontrol mesin, tutup shift, ekspor CSV |
+| `teknisi` | `teknisi2026` | teknisi | Kontrol mesin, **kalibrasi parameter**, I/O test |
+
+Ganti password: `POST /api/auth/ganti-password` (min 8 karakter, tidak boleh angka saja).
+Hash: **PBKDF2-HMAC-SHA256, 200.000 iterasi** (stdlib, tanpa dependensi).
+Set salt produksi via env `HMI_PIN_SALT`.
+
+## Database (SQLite, mode WAL — `backend/hmi.db`, ubah via env `HMI_DB`)
+
+| Tabel | Isi |
+|---|---|
+| `daily_production_summary` | Arsip per shift, UNIQUE(tanggal, shift) — total/lolos/tersortir/uptime/efisiensi + penutup shift |
+| `alarm_log` | Semua alarm: kode, deskripsi, `raised_at`, `cleared_at` |
+| `system_parameter` | Kalibrasi tersimpan — dimuat ulang otomatis saat restart |
+| `user_account` | Akun + hash PBKDF2; role CHECK ('supervisor','teknisi') |
+
+Counter mesin juga retentif: bertahan mati listrik (persisten, mirror `VAR_RETAIN` PLC).
+
+## REST API ringkas (detail lengkap: `/docs` atau halaman API Docs di HMI)
+
+| Metode | Path | Auth | Fungsi |
+|---|---|---|---|
+| POST | `/api/auth/login` | — | Bearer token (8 jam) |
+| POST | `/api/auth/logout` | ✓ | Hapus sesi |
+| POST | `/api/auth/ganti-password` | ✓ | Ganti password sendiri |
+| GET | `/api/status` | — | State, I/O, counter, VFD real-time |
+| GET | `/api/parameter` | — | Kalibrasi aktif |
+| PUT | `/api/parameter` | teknisi | Ubah kalibrasi (validasi rentang PRD) → DB |
+| POST | `/api/kontrol` | sup/tek | `start`\|`stop`\|`estop`\|`reset`\|`reset_counter` |
+| GET | `/api/laporan` | — | Live + riwayat (`?tanggal=YYYY-MM-DD`) |
+| POST | `/api/laporan/tutup-shift` | supervisor | Arsip DB + reset counter |
+| GET | `/api/laporan/ekspor` | — | Unduh CSV dari DB |
+| GET | `/api/alarm` | — | Aktif + riwayat 50 |
+| POST | `/api/diagnostik/io` | teknisi | Paksa I/O per kanal |
+| GET | `/api/simulasi/objek` | — | Objek demo (siklus SORT-1..4) |
+
+Endpoint publik baca-saja disengaja untuk display pabrik/wallboard. Semua perubahan state butuh token.
 
 ## Deploy hardware (PLC)
 
 Import `plc/*.scl` ke TIA Portal (S7-1200), mapping I/O:
-- `xObjekTerdeteksi` → input sensor induktif (I0.0)
+- `xObjekTerdeteksi` → sensor induktif (I0.0)
 - `xAktuatorHome` → sensor reed aktuator (I0.1)
 - `xEStop` → safety relay NC (I0.2) — cat-0 STO ke VFD
 - `xMotorRun` → VFD Modbus RTU / terminal 24 V
 - `xSortirAktif` → solenoid pneumatik (Q0.0)
 
-## Ketertelusuran PRD
+## Ketertelusuran PRD & standar
 
-Semua modul berkomentar dengan ID PRD (CTRL-N, SORT-N, CNT-N, RPT-N). Kebutuhan Fase Lanjutan (barcode, erp_sync, machine vision, MQTT/OPC-UA) **tidak dibangun** sesuai Bab 4.2 + 11.
+- Semua modul berkomentar dengan ID PRD (CTRL-N, SORT-N, CNT-N, RPT-N).
+- Kebutuhan Fase Lanjutan (barcode `item_barcode`, `erp_sync_status`, machine vision, MQTT/OPC-UA) **tidak dibangun** sesuai Bab 4.2 + 11.
+- Kontras token diverifikasi WCAG 2.2 AA; fokus keyboard selalu terlihat; target sentuh ≥44 px; `prefers-reduced-motion` dihormati.
+- Tanpa placeholder/TODO/dead code; validasi input di klien (HTML) dan server (Pydantic: HTTP 422/401/403/409).
