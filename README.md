@@ -1,119 +1,211 @@
-# Konveyor PLC — Smart Conveyor Sorting & Daily Production Counter System
+# Konveyor PLC
 
-Implementasi PRD v0.1 (draft) — **Keduanya: Software (simulasi full-stack + database + REST API) + Hardware (kode PLC IEC 61131-3)**.
+Sistem sortir konveyor otomatis dengan penghitung produksi harian — lengkap dari sisi **software** (simulator + HMI web + database + REST API) dan **hardware** (program PLC Siemens S7-1200).
 
-## Struktur
+> Implementasi dari PRD v0.1 (draft). Setiap modul diberi komentar ID PRD-nya (CTRL-N, SORT-N, CNT-N, RPT-N) supaya mudah dilacak balik ke dokumen kebutuhan.
+
+---
+
+## Apa yang dikerjakan sistem ini
+
+Sebuah konveyor membawa barang melewati sensor. Saat barang terdeteksi, mesin mengerem sabuk tepat di titik sortir, menyalakan aktuator pneumatik untuk mendorong barang keluar, lalu melanjutkan lagi — semua otomatis. Setiap barang masuk, keluar lewat sortir, atau lolos tanpa tersortir tercatat, diarsipkan per shift, dan bisa diekspor ke CSV untuk laporan harian.
+
+Fitur utama:
+
+- **Kendali mesin** — Start, Stop, Reset, dan E-Stop yang ter-latch (harus di-reset setelah kondisi aman).
+- **Penghitung retentif** — angka produksi tidak hilang saat listrik mati.
+- **Laporan per shift** — 3 shift × 8 jam, ditutup oleh supervisor dengan autentikasi.
+- **Grafik tren** — riwayat arsip digambar langsung di HMI, ikut tema gelap/terang.
+- **Alarm log permanen** — setiap E-Stop dan gangguan aktuator tercatat di database.
+- **Kalibrasi terlindungi** — hanya peran teknisi yang boleh mengubah parameter.
+
+---
+
+## Struktur proyek
 
 ```
 konveyor-plc/
-├── plc/                      # HARDWARE — kode PLC (Siemens S7-1200, IEC 61131-3 ST)
-│   ├── FB_ConveyorControl.scl    # CTRL-1..5, SORT-1..4 (state machine, debounce, brake sync, interlock, E-Stop STO)
-│   └── FB_ProductionCounter.scl  # CNT-1..2, RPT-3..6 (counter retentif, shift 3×8 jam, DB daily summary, CSV)
-├── backend/                  # SOFTWARE — engine simulasi + REST API + database
-│   ├── engine.py                 # Mirror 1:1 logika SCL ke Python, scan cycle 10 ms, counter persisten
-│   ├── main.py                   # FastAPI: auth token, kontrol, parameter, laporan, tutup-shift, CSV, alarm, diagnostik
-│   ├── db.py                     # SQLite WAL: 4 tabel sesuai model data PRD Bab 8
+├── plc/                        Program PLC (Siemens S7-1200, IEC 61131-3 Structured Text)
+│   ├── FB_ConveyorControl.scl      Mesin status: CTRL-1..5, SORT-1..4
+│   └── FB_ProductionCounter.scl    Penghitung & laporan: CNT-1..2, RPT-3..6
+│
+├── backend/                    Simulator + REST API + database
+│   ├── engine.py                   Mirror logika SCL ke Python, siklus scan 10 ms
+│   ├── main.py                     Endpoint FastAPI + autentikasi bearer token
+│   ├── db.py                       SQLite (mode WAL), 4 tabel
+│   ├── test_engine.py              11 unit test engine
+│   ├── test_api.py                 15 test integrasi API
 │   └── requirements.txt
-├── frontend/                 # SOFTWARE — HMI web responsif (WCAG 2.2 AA, dark mode, Bahasa Indonesia)
-│   ├── index.html                # Kendali: status, indikator I/O, Start/Stop/Reset/E-STOP
-│   ├── penghitung.html           # Counter + parameter kalibrasi teknisi
-│   ├── laporan.html              # RPT-4 ringkasan + RPT-6 ekspor CSV + RPT-5 tutup shift
-│   ├── diagnostik.html           # I/O test manual + simulator objek
-│   ├── docs.html                 # Dokumentasi API di dalam HMI
-│   ├── tokens.css                # Satu file token (kontras diverifikasi WCAG AA)
-│   ├── shell.css / shell.js      # Layout mobile-first, drawer <lg, tema gelap/terang persisten
-│   ├── components.css / components.js  # Komponen tunggal: toast, modal, konfirmasi, loading/empty/error
-│   ├── api-client.js             # Fetch wrapper terpusat + ApiError
-│   ├── format.js                 # Utilitas format seragam (id-ID)
-│   └── hmi-app.js                # Logika modul (poll 500 ms)
-└── README.md
+│
+├── frontend/                   HMI web — Bahasa Indonesia, WCAG 2.2 AA, dark mode
+│   ├── login.html                  Halaman masuk (sesi 8 jam)
+│   ├── index.html                  Kendali mesin: status, indikator I/O, tombol operasi
+│   ├── penghitung.html             Counter produksi + parameter kalibrasi
+│   ├── laporan.html                Ringkasan harian + tutup shift + ekspor CSV
+│   ├── tren.html                   Grafik tren produksi (canvas, tanpa dependensi)
+│   ├── diagnostik.html             Pengetesan I/O manual + simulator objek
+│   ├── docs.html                   Dokumentasi API di dalam HMI
+│   ├── tokens.css                  Satu-satunya sumber nilai visual (kontras lolos WCAG AA)
+│   ├── shell.css / shell.js        Layout mobile-first + drawer + tema
+│   ├── components.css / js         Komponen bersama: toast, modal, konfirmasi
+│   ├── api-client.js               Pembungkus fetch terpusat
+│   ├── auth.js                     Penjaga sesi sisi klien
+│   ├── chart.js                    Penggambar grafik tren
+│   └── hmi-app.js                  Logika modul (pembaruan tiap 500 ms)
+│
+├── .github/workflows/ci.yml    CI: test → build → push image ke GHCR
+├── Dockerfile                  Image produksi (non-root + healthcheck)
+└── docker-compose.yml          Deploy satu perintah
 ```
 
-## Parameter disetujui (Bab 12 + asumsi Bab 5)
+---
 
-| Parameter | Nilai |
-|---|---|
-| Kecepatan belt | 0,5 m/s (25 Hz VFD) |
-| Jarak sensor → titik rem | 200 mm → dwell rem **400 ms** |
-| Shift | 3 × 8 jam (06–14, 14–22, 22–06) |
-| Sensor | Induktif PNP NO, debounce **15 ms** (rentang PRD 10–20) |
-| Aktuator | Pneumatik, dwell default 500 ms (kalibrasi teknisi) |
+## Menjalankan
 
-## Jalankan
+### Cara tercepat — Docker
+
+```bash
+docker compose up -d
+```
+
+Buka **http://localhost:8600** — selesai. Data tersimpan di volume Docker sehingga tetap ada setelah container di-rebuild.
+
+### Tanpa Docker (pengembangan)
 
 ```bash
 cd backend
 pip install -r requirements.txt
 python3 -m uvicorn main:app --port 8600
-# HMI      → http://localhost:8600
-# API docs → http://localhost:8600/docs   (Swagger UI interaktif)
-#          → http://localhost:8600/redoc  (ReDoc)
 ```
 
-## Akun bawaan (WAJIB ganti setelah login pertama)
-
-| Username | Password awal | Peran | Hak |
-|---|---|---|---|
-| `supervisor` | `2580` | supervisor | Kontrol mesin, tutup shift, ekspor CSV |
-| `teknisi` | `teknisi2026` | teknisi | Kontrol mesin, **kalibrasi parameter**, I/O test |
-
-Ganti password: `POST /api/auth/ganti-password` (min 8 karakter, tidak boleh angka saja).
-Hash: **PBKDF2-HMAC-SHA256, 200.000 iterasi** (stdlib, tanpa dependensi).
-Set salt produksi via env `HMI_PIN_SALT`.
-
-## Database (SQLite, mode WAL — `backend/hmi.db`, ubah via env `HMI_DB`)
-
-| Tabel | Isi |
+| Alamat | Isi |
 |---|---|
-| `daily_production_summary` | Arsip per shift, UNIQUE(tanggal, shift) — total/lolos/tersortir/uptime/efisiensi + penutup shift |
-| `alarm_log` | Semua alarm: kode, deskripsi, `raised_at`, `cleared_at` |
-| `system_parameter` | Kalibrasi tersimpan — dimuat ulang otomatis saat restart |
-| `user_account` | Akun + hash PBKDF2; role CHECK ('supervisor','teknisi') |
+| `http://localhost:8600` | HMI (antarmuka operator) |
+| `http://localhost:8600/docs` | Swagger UI — coba API langsung dari browser |
+| `http://localhost:8600/redoc` | ReDoc — tampilan referensi API |
 
-Counter mesin juga retentif: bertahan mati listrik (persisten, mirror `VAR_RETAIN` PLC).
-
-## REST API ringkas (detail lengkap: `/docs` atau halaman API Docs di HMI)
-
-| Metode | Path | Auth | Fungsi |
-|---|---|---|---|
-| POST | `/api/auth/login` | — | Bearer token (8 jam) |
-| POST | `/api/auth/logout` | ✓ | Hapus sesi |
-| POST | `/api/auth/ganti-password` | ✓ | Ganti password sendiri |
-| GET | `/api/status` | — | State, I/O, counter, VFD real-time |
-| GET | `/api/parameter` | — | Kalibrasi aktif |
-| PUT | `/api/parameter` | teknisi | Ubah kalibrasi (validasi rentang PRD) → DB |
-| POST | `/api/kontrol` | sup/tek | `start`\|`stop`\|`estop`\|`reset`\|`reset_counter` |
-| GET | `/api/laporan` | — | Live + riwayat (`?tanggal=YYYY-MM-DD`) |
-| POST | `/api/laporan/tutup-shift` | supervisor | Arsip DB + reset counter |
-| GET | `/api/laporan/ekspor` | — | Unduh CSV dari DB |
-| GET | `/api/alarm` | — | Aktif + riwayat 50 |
-| POST | `/api/diagnostik/io` | teknisi | Paksa I/O per kanal |
-| GET | `/api/simulasi/objek` | — | Objek demo (siklus SORT-1..4) |
-
-Endpoint publik baca-saja disengaja untuk display pabrik/wallboard. Semua perubahan state butuh token.
+### Menjalankan test
 
 ```bash
 cd backend
-python3 -m pytest test_engine.py test_api.py -v   # 26 test
-
-# Docker
-docker build -t konveyor-plc .
-docker run -p 8600:8600 -e HMI_PIN_SALT="salt-rahasia-anda" konveyor-plc
-# atau: docker compose up -d
+python3 -m pytest test_engine.py test_api.py -v
 ```
 
-## Deploy hardware (PLC)
+26 test: logika sortir lengkap, debounce, E-Stop latch, counter retentif, autentikasi, hak akses per peran, arsip shift, sampai ekspor CSV.
 
-Import `plc/*.scl` ke TIA Portal (S7-1200), mapping I/O:
-- `xObjekTerdeteksi` → sensor induktif (I0.0)
-- `xAktuatorHome` → sensor reed aktuator (I0.1)
-- `xEStop` → safety relay NC (I0.2) — cat-0 STO ke VFD
-- `xMotorRun` → VFD Modbus RTU / terminal 24 V
-- `xSortirAktif` → solenoid pneumatik (Q0.0)
+---
 
-## Ketertelusuran PRD & standar
+## Akun bawaan
 
-- Semua modul berkomentar dengan ID PRD (CTRL-N, SORT-N, CNT-N, RPT-N).
-- Kebutuhan Fase Lanjutan (barcode `item_barcode`, `erp_sync_status`, machine vision, MQTT/OPC-UA) **tidak dibangun** sesuai Bab 4.2 + 11.
-- Kontras token diverifikasi WCAG 2.2 AA; fokus keyboard selalu terlihat; target sentuh ≥44 px; `prefers-reduced-motion` dihormati.
-- Tanpa placeholder/TODO/dead code; validasi input di klien (HTML) dan server (Pydantic: HTTP 422/401/403/409).
+⚠️ **Ganti password sebelum dipakai sungguhan** — lewat menu profil atau `POST /api/auth/ganti-password`.
+
+| Username | Password awal | Boleh apa |
+|---|---|---|
+| `supervisor` | `2580` | Kendali mesin, tutup shift, ekspor laporan |
+| `teknisi` | `teknisi2026` | Kendali mesin, kalibrasi parameter, tes I/O |
+
+Password di-hash dengan PBKDF2-HMAC-SHA256 (200.000 iterasi). Ganti nilai `HMI_PIN_SALT` di environment sebelum produksi — ini salt untuk semua hash password.
+
+---
+
+## Parameter produksi
+
+Nilai-nilai ini disepakati saat analisis kebutuhan (Bab 12 + asumsi Bab 5 PRD):
+
+| Parameter | Nilai | Catatan |
+|---|---|---|
+| Kecepatan sabuk | 0,5 m/s (25 Hz) | Via VFD |
+| Jarak sensor → titik rem | 200 mm | Setara dwell rem **400 ms** |
+| Shift kerja | 3 × 8 jam | 06–14, 14–22, 22–06 |
+| Sensor | Induktif PNP NO | Debounce **15 ms** (rentang PRD 10–20 ms) |
+| Aktuator | Pneumatik | Dwell 500 ms, bisa dikalibrasi teknisi |
+
+---
+
+## REST API
+
+Daftar lengkap dengan contoh ada di `http://localhost:8600/docs` atau halaman **API Docs** di dalam HMI. Ringkasannya:
+
+| Metode | Path | Hak akses | Fungsi |
+|---|---|---|---|
+| POST | `/api/auth/login` | terbuka | Dapat bearer token (berlaku 8 jam) |
+| POST | `/api/auth/logout` | login | Akhiri sesi |
+| POST | `/api/auth/ganti-password` | login | Ganti password sendiri |
+| GET | `/api/status` | terbuka | Status mesin real-time |
+| GET | `/api/parameter` | terbuka | Nilai kalibrasi aktif |
+| PUT | `/api/parameter` | teknisi | Ubah kalibrasi (tersimpan di DB) |
+| POST | `/api/kontrol` | sup/tek | `start` · `stop` · `estop` · `reset` · `reset_counter` |
+| GET | `/api/laporan` | terbuka | Laporan live + riwayat (`?tanggal=YYYY-MM-DD`) |
+| POST | `/api/laporan/tutup-shift` | supervisor | Arsipkan shift ke DB, reset counter |
+| GET | `/api/laporan/ekspor` | terbuka | Unduh CSV |
+| GET | `/api/alarm` | terbuka | Alarm aktif + riwayat 50 terakhir |
+| POST | `/api/diagnostik/io` | teknisi | Paksa nilai I/O per kanal |
+| GET | `/api/simulasi/objek` | terbuka | Kirim objek simulasi (demo tanpa hardware) |
+
+Endpoint yang terbuka sengaja dibaca-saja — untuk dipasang di layar pabrik tanpa login. Segala yang mengubah kondisi mesin wajib token.
+
+### Contoh satu siklus
+
+```bash
+TOK=$(curl -s -X POST http://localhost:8600/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"supervisor","password":"2580"}' | jq -r .access_token)
+
+curl -X POST http://localhost:8600/api/kontrol \
+  -H "Authorization: Bearer $TOK" -H 'Content-Type: application/json' \
+  -d '{"perintah":"start"}'
+
+curl http://localhost:8600/api/simulasi/objek   # demo: satu barang lewat
+curl http://localhost:8600/api/status | jq .counters
+```
+
+---
+
+## Database
+
+Satu file SQLite (`backend/hmi.db`, bisa dipindah lewat `HMI_DB`) dengan mode WAL. Empat tabel:
+
+| Tabel | Isi |
+|---|---|
+| `daily_production_summary` | Arsip per shift — unik per (tanggal, shift); total, lolos, tersortir, uptime, efisiensi, penutup |
+| `alarm_log` | Kode alarm, deskripsi, waktu naik dan waktu bersih |
+| `system_parameter` | Kalibrasi; dimuat ulang otomatis saat aplikasi start |
+| `user_account` | Akun + hash PBKDF2, peran supervisor/teknisi |
+
+---
+
+## Deploy ke PLC sungguhan
+
+Import kedua file `plc/*.scl` ke TIA Portal (S7-1200), lalu petakan I/O:
+
+| Variabel | Perangkat | Terminal |
+|---|---|---|
+| `xObjekTerdeteksi` | Sensor induktif | I0.0 |
+| `xAktuatorHome` | Sensor reed posisi aktuator | I0.1 |
+| `xEStop` | Safety relay (kontak NC) | I0.2 — STO cat-0 ke VFD |
+| `xMotorRun` | Perintah run VFD | Modbus RTU / terminal 24 V |
+| `xSortirAktif` | Solenoid pneumatik | Q0.0 |
+
+---
+
+## CI/CD
+
+`.github/workflows/ci.yml` berjalan pada setiap push ke `main`: lint → unit test → test integrasi → build image → push ke `ghcr.io/hardihardi/konveyor-plc`.
+
+> **Catatan jujur:** runner GitHub Actions akun ini sedang terkunci billing ("account is locked due to a billing issue"). Workflow sudah benar dan tertes secara lokal — 26/26 pytest lolos dan image Docker terverifikasi jalan sehat. Setelah billing aktif di Settings → Billing, pipeline jalan tanpa perubahan apa pun.
+
+---
+
+## Batasan yang disengaja
+
+Sesuai PRD (Bab 4.2 dan 11), hal-hal berikut **sengaja tidak dibangun** dan menunggu permintaan:
+
+- Barcode scanner (`item_barcode`) dan sinkronisasi ERP (`erp_sync_status`)
+- Pemeriksaan visual (machine vision)
+- Komunikasi MQTT / OPC-UA
+
+## Standar yang dipegang
+
+- Kontras warna diverifikasi WCAG 2.2 AA; fokus keyboard selalu terlihat; target sentuh minimal 44×44 px; animasi menghormati `prefers-reduced-motion`.
+- Validasi input di dua sisi: atribut HTML di klien, Pydantic di server (balasan 422/401/403/409 yang jelas).
+- Tanpa placeholder, tanpa TODO, tanpa dead code — semua nilai visual merujuk satu file token.
