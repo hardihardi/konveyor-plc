@@ -2,6 +2,7 @@
 // Semua akses API lewat api-client.js; semua format lewat format.js; UI lewat components.js.
 
 import { apiGet, apiPost, apiPut, ApiError, ENDPOINT } from "./api-client.js";
+import { wajibAuth, headerAuth, bersihkanSesi } from "./auth.js";
 import { formatAngka, formatWaktu } from "./format.js";
 import { toast, konfirmasi } from "./components.js";
 
@@ -64,6 +65,7 @@ async function muatKendali() {
       alarmBox.hidden = true;
     }
   } catch (e) {
+    if (e instanceof ApiError && e.status === 401) { bersihkanSesi(); location.href = "/login.html"; return; }
     if (!(e instanceof ApiError)) console.warn("poll gagal:", e);
   }
 }
@@ -75,7 +77,7 @@ function pasangKendali() {
       if (!lanjut) return;
     }
     try {
-      const r = await apiPost(ENDPOINT.kontrol, { perintah });
+      const r = await apiPost(ENDPOINT.kontrol, { perintah }, headerAuth());
       toast(r.state ? `Mesin: ${r.state}` : "Perintah terkirim", "sukses");
       muatKendali();
     } catch (e) {
@@ -119,7 +121,7 @@ function pasangParameter() {
       sort_dwell_ms: baca("sort_dwell_ms"),
     };
     try {
-      await apiPut(ENDPOINT.parameter, body);
+      await apiPut(ENDPOINT.parameter, body, headerAuth());
       toast("Parameter kalibrasi tersimpan", "sukses");
       muatPenghitung();
     } catch (e) {
@@ -153,12 +155,12 @@ async function muatLaporan() {
       const lanjut = await konfirmasi("Konfirmasi Tutup Shift", "Semua penghitung harian direset dan diarsipkan. Lanjutkan?");
       if (!lanjut) return;
       try {
-        const r = await apiPost(ENDPOINT.tutupShift, { pin });
+        const r = await apiPost(ENDPOINT.tutupShift, { username: new FormData(tutup).get("username"), password: new FormData(tutup).get("pin") }, headerAuth());
         toast(r.detail, "sukses");
         tutup.reset();
         muatLaporan();
       } catch (e) {
-        toast(e.detail ?? "PIN salah", "gagal");
+        toast(e.detail ?? "Kredensial supervisor salah", "gagal");
       }
     };
   } catch (e) {
@@ -192,6 +194,9 @@ function pasangDiagnostik() {
 
 /* ------------------------------------------------------------------ Init */
 function init() {
+  const sesi = wajibAuth();   // semua halaman modul butuh login; 401 dari API menangani role
+  if (sesi === null) return;
+  const h = headerAuth();
   if (halamanAktif === "kendali") {
     pasangKendali();
     muatKendali();

@@ -23,8 +23,10 @@
     <li><a href="/index.html"><span class="ikon" aria-hidden="true">⚙</span> Kendali</a></li>
     <li><a href="/penghitung.html"><span class="ikon" aria-hidden="true">#</span> Penghitung</a></li>
     <li><a href="/laporan.html" aria-current="page"><span class="ikon" aria-hidden="true">▤</span> Laporan</a></li>
+    <li><a href="/tren.html"><span class="ikon" aria-hidden="true">📈</span> Tren</a></li>
     <li><a href="/diagnostik.html"><span class="ikon" aria-hidden="true">✚</span> Diagnostik</a></li>
-  </ul>
+  <li><button id="btn-logout" class="btn btn--peringatan" style="margin: var(--sp-2) var(--sp-4); width: calc(100% - 2*var(--sp-4));">Keluar</button></li>
+    </ul>
 </nav>
 <div class="drawer-veil" id="drawer-veil" hidden></div>
 
@@ -52,10 +54,12 @@
 
   <section class="panel" aria-labelledby="h-tutup">
     <h2 id="h-tutup">Tutup Shift (RPT-5)</h2>
-    <p class="teks-bantu">Membutuhkan PIN supervisor. Semua penghitung direset dan data diarsipkan.</p>
+    <p class="teks-bantu">Membutuhkan kredensial supervisor. Semua penghitung direset dan data diarsipkan.</p>
     <form id="form-tutup-shift" class="form-grid">
-      <label for="pin">PIN supervisor</label>
-      <input id="pin" name="pin" type="password" inputmode="numeric" autocomplete="off" minlength="4" maxlength="8" required>
+      <label for="username-tutup">Username supervisor</label>
+      <input id="username-tutup" name="username" type="text" autocomplete="username" required minlength="3">
+      <label for="pin">Password supervisor</label>
+      <input id="pin" name="pin" type="password" autocomplete="current-password" required minlength="4">
       <button type="submit" class="btn btn--peringatan">Tutup Shift &amp; Reset</button>
     </form>
   </section>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="color-scheme" content="dark light">
+  <title>HMI Konveyor — Masuk</title>
+  <link rel="stylesheet" href="/tokens.css">
+  <link rel="stylesheet" href="/shell.css">
+  <link rel="stylesheet" href="/components.css">
+</head>
+<body>
+<main class="konten login-wrap" id="konten-utama">
+  <section class="panel login-panel" aria-labelledby="h-login">
+    <h1 id="h-login">Masuk HMI Konveyor</h1>
+    <p class="teks-bantu">Gunakan akun supervisor atau teknisi. Sesi berlaku 8 jam.</p>
+    <form id="form-login" class="form-grid" novalidate>
+      <label for="username">Username</label>
+      <input id="username" name="username" type="text" autocomplete="username"
+             required minlength="3" maxlength="32">
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password"
+             required minlength="4" maxlength="64" aria-describedby="login-error">
+      <p id="login-error" class="error-teks" role="alert" hidden></p>
+      <button type="submit" class="btn btn--utama">Masuk</button>
+    </form>
+    <p class="teks-bantu">Lupa password? Hubungi teknisi otomasi untuk reset.</p>
+  </section>
+</main>
+<script type="module" src="/login.js"></script>
+<script type="module" src="/shell.js"></script>
+</body>
+</html>

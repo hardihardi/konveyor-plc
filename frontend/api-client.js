@@ -13,10 +13,11 @@ export class ApiError extends Error {
 async function request(path, opsi = {}) {
   let res;
   try {
+    const { body, headers, ...sisanya } = opsi;
     res = await fetch(`${BASE}${path}`, {
-      headers: { "Content-Type": "application/json" },
-      ...opsi,
-      body: opsi.body !== undefined ? JSON.stringify(opsi.body) : undefined,
+      ...sisanya,
+      headers: { "Content-Type": "application/json", ...headers },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch {
     throw new ApiError(0, "Tidak dapat menyambung ke server PLC. Periksa koneksi jaringan.");
@@ -29,9 +30,9 @@ async function request(path, opsi = {}) {
   return tipe.includes("application/json") ? res.json() : res.text();
 }
 
-export const apiGet = (path) => request(path);
-export const apiPost = (path, body) => request(path, { method: "POST", body });
-export const apiPut = (path, body) => request(path, { method: "PUT", body });
+export const apiGet = (path, headers = {}) => request(path, { headers });
+export const apiPost = (path, body, headers = {}) => request(path, { method: "POST", body, headers });
+export const apiPut = (path, body, headers = {}) => request(path, { method: "PUT", body, headers });
 
 // Endpoint terpusat — dipakai modul via konstanta ini agar path tidak tersebar.
 export const ENDPOINT = {
